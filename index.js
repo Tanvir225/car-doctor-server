@@ -1,4 +1,5 @@
 const express = require("express");
+const jwt = require('jsonwebtoken');
 const app = express();
 const cors = require("cors");
 const port = process.env.PORT || 5000;
@@ -40,6 +41,16 @@ async function run() {
     const myservices = client.db('carDoctor').collection("myservices")
 
 
+    //auth related api
+    app.post("/jwt",(req,res)=>{
+      const user= req.body;
+      console.log(user);
+      const token = jwt.sign(user,process.env.ACCESS_TOKEN,{expiresIn:'1h'})
+      res.send(token)
+
+    })
+
+
     //services endpoints
     app.get("/services",async(req,res)=>{
         const cursor = await services.find().toArray()
@@ -60,9 +71,19 @@ async function run() {
 
     //myservices endpoints
     app.get("/myservices",async(req,res)=>{
-      const result = await myservices.find().toArray()
+      let email = req.query.email
+      console.log(email)
+      let result
+
+      if (email) {
+        result = await myservices.find({email : email}).toArray()
+      }
+      else{
+        result = await myservices.find().toArray()
+      }
       res.send(result)
     })
+
 
 
     //myservices post endpoints
@@ -71,6 +92,32 @@ async function run() {
         //console.log(orderInfo);
         const result =await myservices.insertOne(orderInfo)
         res.send(result)
+    })
+
+    //myservices patch endpoints
+    app.patch("/myservices/:id",async(req,res)=>{
+      const serviceID = req.params.id
+      const service = req.body
+      console.log(serviceID)
+      const filter = {_id : new ObjectId(serviceID)}
+      const updateDoc = {
+        $set:{
+          status:service.status
+        }
+      }
+      const options = { upsert:true};
+
+      const result = await myservices.updateOne(filter,updateDoc,options);
+      res.send(result)
+    }) 
+
+    //delete myservice endpoints
+    app.delete("/myservices/:id",async(req,res)=>{
+      const serviceId = req.params.id
+      console.log(serviceId)
+      const query = {_id : new ObjectId(serviceId)}
+      const result = await myservices.deleteOne(query)
+      res.send(result)
     })
 
     // Send a ping to confirm a successful connection
